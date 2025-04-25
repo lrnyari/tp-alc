@@ -184,6 +184,47 @@ def calcula_B(C,cantidad_de_visitas):
         B+= elevar(C, i)# Sumamos las matrices de transición para cada cantidad de pasos, osea le sumamos la Ccont elevado a la uno hasta la Ccont elevado a cantidad_de_visitas -1 inclusive
     return B
 
+##%% Funciones para gráficos y visualizacion
+
+def grafica(museos, barrios, m, alpha):
+  factor_escala = 1e4
+  D = museos.to_crs("EPSG:22184").geometry.apply(lambda g: museos.to_crs("EPSG:22184").distance(g)).round().to_numpy()
+  A = construye_adyacencia(D,m)
+  G = nx.from_numpy_array(A) # Construimos la red a partir de la matriz de adyacencia
+  
+  # Construimos un layout a partir de las coordenadas geográficas
+  G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
+  pagerank = calcula_pagerank(A, alpha)
+  pr_vector = np.array([pagerank[n] for n in G.nodes])
+  prordenado = pd.Series(pagerank).sort_values(ascending=False)
+  print("Museos más centrales: \n", prordenado.head(3))
+  #Busco los indices de los 3 principales
+  Nprincipales = 3
+  principales = np.argsort(pr_vector)[-Nprincipales:]  # índices de los top 3
+  
+  #Le pongo un label solo a los principales
+  labels = {n: str(n) if i in principales else "" for i, n in enumerate(G.nodes)}
+
+  #Grafico
+  fig, ax = plt.subplots(figsize=(6, 6))
+  barrios.to_crs("EPSG:22184").boundary.plot(color='gray', ax=ax)
+
+  plt.title("Visualización de la red en el mapa(Tamaño de nodos proporcional a pagerank)")
+  nx.draw_networkx(
+    G,
+    G_layout,
+    node_size=pr_vector * factor_escala,
+    ax=ax,
+    with_labels=False
+  )
+
+  nx.draw_networkx_labels(
+    G,
+    G_layout,
+    labels=labels,
+    font_size=6,
+    font_color="r"    
+  );
 
 def dicPagerankSobreM(D, m, alpha):
   #Funcion que genera un diccionario con el pagerank de cada museo para una serie de valores de m
@@ -215,31 +256,6 @@ def dicPagerankSobreAlpha(D, m, alpha):
   return diccionarioPagerank
 #%%
 
-def prcongrafico(D, m, alpha):
-  #Funcion que recibe la matriz de distancias D, un entero m y un float alpha
-  #Calcula el pagerank de cada museo, imprime los 3 museos centrales y genera un gráfico sobre el mapa
-  #donde el tamaño de cada nodo es proporcional a su pagerank
-  adyacencia = construye_adyacencia(D, m)
-  pagerank = calcula_pagerank(adyacencia, alpha)
-  #Muestra el vector p ordenado para facilitar la visualización.
-  prordenado = pd.Series(pagerank).sort_values(ascending=False)
-  print("Museos más centrales: \n", prordenado.head(3))
-  #display(prordenado.head(3))
-  #Para el gráfico
-  G = nx.from_numpy_array(adyacencia) # Construimos la red a partir de la matriz de adyacencia
-# Construimos un layout a partir de las coordenadas geográficas
-  G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
-  factor_escala = 1e4 # Escalamos los nodos 10 mil veces para que sean bien visibles
-  fig, ax = plt.subplots(figsize=(10, 10)) # Visualización de la red en el mapa
-  barrios.to_crs("EPSG:22184").boundary.plot(color='gray',ax=ax); # Graficamos Los barrios
-  pr = np.random.uniform(pagerank)# Este va a ser su score Page Rank. Ahora lo reemplazamos con un vector al azar
-  pr = pr/pr.sum() # Normalizamos para que sume 1
-  Nprincipales = 3 # Cantidad de principales
-  principales = np.argsort(pr)[-Nprincipales:] # Identificamos a los N principales
-  labels = {n: str(n) if i in principales else "" for i, n in enumerate(G.nodes)} # Nombres para esos nodos
-  nx.draw_networkx(G,G_layout,node_size = pr*factor_escala, ax=ax,with_labels=False); # Graficamos red
-  nx.draw_networkx_labels(G, G_layout, labels=labels, font_size=6, font_color="k") # Agregamos los nombres
-  return
 #5)c
 
 #Quiero resolver el sistema Bv=w con B=LU, osea LUv=w, siendo Uv = Y
