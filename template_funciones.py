@@ -90,7 +90,9 @@ def calculaLU(matriz):
 #%%
 
 
+
 #%%
+#Función que recibe una matriz y devuelve otra matriz transpuesta de A
 #transpuesta=que las filas sean las columnas y las columnas las filas
 def trans(A):
     filas = len(A) #longitud de las filas
@@ -106,6 +108,7 @@ def trans(A):
 
 #K es una matriz de ceros que tiene en su diagonal la suma de las columnas de A
 def LaK(A):
+  #Funcion que recibe una matriz A y devuelve una matriz K
     n = A.shape[0]  #pido el numero de filas
     K = np.zeros((n, n))  #matriz de ceros segun numero de filas
     for i in range(n):
@@ -114,17 +117,20 @@ def LaK(A):
 
 #como K es una matriz de ceros con solo numeros en la diagonal, su inversa sera
 #la misma solo que los numeros  la diagonal ahora estaran elevados a la menos uno
-def diagonalalamenos1(K): 
+def diagonalalamenos1(K):
+  #Recibe una matriz K y devuelve una matriz Kinversa 
     Kinversa = K.copy() #copio K
     for i in range(K.shape[0]): 
         Kinversa[i, i] = 1 / K[i, i] #le pido que la diagonal este a la menos 1
     return Kinversa
 
-def calcula_matriz_C(A): 
-    Atranspuesta = trans(A) #traspongo A
-    Kinv = diagonalalamenos1(LaK(A)) #saco K inv
-    C = Atranspuesta@Kinv #producto matricial entre Atranspuesta y Kinv
-    return C
+def calcula_matriz_C(A):
+  #Funcion que recibe una matriz A de adyacencia y genera la matriz C
+  #Recibe una matriz A y devuelve una matriz C
+  Atranspuesta = trans(A) #traspongo A
+  Kinv = diagonalalamenos1(LaK(A)) #saco K inv
+  C = Atranspuesta@Kinv #producto matricial entre Atranspuesta y Kinv
+  return C
 
 
 
@@ -160,10 +166,11 @@ def calcula_matriz_C_continua(D):
 #%%
 #hago una funcion que me da una matriz elevado al exponete (este no debe ser cero)
 def elevar(matriz, exponente):
-    res=matriz #matriz elevado a la uno
-    for i in range(1, exponente):
-        res@=matriz #y luego le multiplico a la matriz elevado a la uno lo que necesito para q este elevado a lo q yo quiero q este
-    return res
+  #Retorna el resultado de multiplicar la matriz con si misma n veces
+  res=matriz #matriz elevado a la uno
+  for i in range(1, exponente):
+    res@=matriz #y luego le multiplico a la matriz elevado a la uno lo que necesito para q este elevado a lo q yo quiero q este
+  return res
 
 #B es igual a la sumatoria de Ccontinua a la cero hasta Ccontinua elevado a cantidad_de_visitas -1 inclusive
 def calcula_B(C,cantidad_de_visitas):
@@ -207,6 +214,32 @@ def dicPagerankSobreAlpha(D, m, alpha):
       diccionarioPagerank["pgr"].append(pagerank[i])
   return diccionarioPagerank
 #%%
+
+def prcongrafico(D, m, alpha):
+  #Funcion que recibe la matriz de distancias D, un entero m y un float alpha
+  #Calcula el pagerank de cada museo, imprime los 3 museos centrales y genera un gráfico sobre el mapa
+  #donde el tamaño de cada nodo es proporcional a su pagerank
+  adyacencia = construye_adyacencia(D, m)
+  pagerank = calcula_pagerank(adyacencia, alpha)
+  #Muestra el vector p ordenado para facilitar la visualización.
+  prordenado = pd.Series(pagerank).sort_values(ascending=False)
+  print("Museos más centrales: \n", prordenado.head(3))
+  #display(prordenado.head(3))
+  #Para el gráfico
+  G = nx.from_numpy_array(adyacencia) # Construimos la red a partir de la matriz de adyacencia
+# Construimos un layout a partir de las coordenadas geográficas
+  G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
+  factor_escala = 1e4 # Escalamos los nodos 10 mil veces para que sean bien visibles
+  fig, ax = plt.subplots(figsize=(10, 10)) # Visualización de la red en el mapa
+  barrios.to_crs("EPSG:22184").boundary.plot(color='gray',ax=ax); # Graficamos Los barrios
+  pr = np.random.uniform(pagerank)# Este va a ser su score Page Rank. Ahora lo reemplazamos con un vector al azar
+  pr = pr/pr.sum() # Normalizamos para que sume 1
+  Nprincipales = 3 # Cantidad de principales
+  principales = np.argsort(pr)[-Nprincipales:] # Identificamos a los N principales
+  labels = {n: str(n) if i in principales else "" for i, n in enumerate(G.nodes)} # Nombres para esos nodos
+  nx.draw_networkx(G,G_layout,node_size = pr*factor_escala, ax=ax,with_labels=False); # Graficamos red
+  nx.draw_networkx_labels(G, G_layout, labels=labels, font_size=6, font_color="k") # Agregamos los nombres
+  return
 #5)c
 
 #Quiero resolver el sistema Bv=w con B=LU, osea LUv=w, siendo Uv = Y
